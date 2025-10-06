@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Task × Pokémon – 10/12タスクをゲーム感覚で</title>
+  <style>
+    :root{
+      --bg:#0f172a; --panel:#111827; --text:#e5e7eb; --accent:#22d3ee; --accent-2:#a78bfa; --ok:#34d399; --warn:#f59e0b; --danger:#f43f5e;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0; background:radial-gradient(1200px 700px at 70% -10%, #1e293b 0%, #0f172a 45%); color:var(--text); font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji"}
+    .app{display:flex; min-height:100vh}
+    .left{width:25%; min-width:260px; background:linear-gradient(180deg, var(--panel), #0b1020); border-right:1px solid #1f2937; padding:16px; position:sticky; top:0; align-self:flex-start; height:100vh; overflow-y:auto;}
+    .right{flex:1; padding:20px 24px}
+
+    .title{font-size:18px; font-weight:700; letter-spacing:.2px; display:flex; align-items:center; gap:8px}
+    .sub{opacity:.75; font-size:12px}
+    .notice{margin-top:8px; font-size:12px; color:#9ca3af; background:#0a1424; border:1px solid #20304a; padding:8px 10px; border-radius:10px}
+
+    .row{display:grid; grid-template-columns:24px 1fr 24px; gap:10px; align-items:center; background:rgba(255,255,255,.02); padding:8px 10px; border:1px solid #1f2937; border-radius:10px}
+    .row input[type="text"]{width:100%; padding:8px 10px; border-radius:8px; border:1px solid #263244; background:#0a1424; color:var(--text); outline:none}
+    .row input[type="text"]::placeholder{color:#94a3b8}
+    .row input[type="checkbox"]{ width:20px; height:20px; accent-color: var(--ok); }
+    .row + .row{margin-top:8px}
+    .row.done{opacity:.6}
+    .row .index{opacity:.7; font-size:12px; background:#0a1324; border-radius:6px; padding:2px 6px; text-align:center}
+
+    .controls{display:flex; gap:8px; margin-top:10px}
+    button{cursor:pointer; border:none; border-radius:10px; padding:10px 12px; background:linear-gradient(90deg, var(--accent), var(--accent-2)); color:#0b1020; font-weight:700; box-shadow:0 10px 25px rgba(56,189,248,.25)}
+    button.secondary{background:#0b1424; color:#e5e7eb; border:1px solid #20304a; box-shadow:none}
+
+    .progress{margin:14px 0 10px; height:10px; background:#0a1322; border-radius:999px; border:1px solid #1f2a40; overflow:hidden}
+    .progress > div{height:100%; width:0%; background:linear-gradient(90deg, var(--ok), var(--accent)); transition:width .35s ease}
+    .progress-label{font-size:12px; opacity:.75; display:flex; justify-content:space-between}
+
+    .grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:16px}
+    .poke{background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01)); border:1px solid #1f2a3d; border-radius:16px; padding:12px; position:relative; overflow:hidden}
+    .poke h3{margin:6px 0 2px; font-size:16px}
+    .poke .meta{font-size:12px; opacity:.7}
+    .poke img{width:100%; height:160px; object-fit:contain; display:block; filter:drop-shadow(0 10px 20px rgba(0,0,0,.6))}
+    .types{display:flex; gap:6px; flex-wrap:wrap; margin:6px 0 0}
+    .badge{font-size:11px; background:#0f1a2c; border:1px solid #23314c; padding:3px 8px; border-radius:999px}
+    .badgelv{position:absolute; top:8px; right:8px; font-size:11px; background:#10203a; border:1px solid #24486d; padding:3px 8px; border-radius:8px}
+    .sparkle{position:absolute; inset:0; pointer-events:none; background:radial-gradient(120px 60px at 20% -10%, rgba(255,255,255,.08), transparent 40%), radial-gradient(140px 80px at 120% 10%, rgba(255,255,255,.06), transparent 40%)}
+
+    .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:24px; background:#081427; border:1px solid #20314e; color:var(--text); padding:10px 14px; border-radius:999px; box-shadow:0 8px 30px rgba(0,0,0,.35); font-size:13px}
+    .confetti{position:fixed; inset:0; pointer-events:none}
+
+    /* Pokéball & reveal */
+    .ball{width:120px;height:120px;border-radius:50%;background:conic-gradient(#e11d48 0 180deg,#e5e7eb 0 360deg);position:relative;margin:0 auto 8px;border:3px solid #0f172a;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .ball:before{content:'';position:absolute;left:0;right:0;top:calc(50% - 3px);height:6px;background:#0f172a}
+    .ball:after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:26px;height:26px;border-radius:50%;background:#e5e7eb;border:4px solid #0f172a}
+    @keyframes wiggle{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-4px) rotate(-6deg)}75%{transform:translateY(-4px) rotate(6deg)}}
+    .wiggle{animation:wiggle 0.7s ease-in-out 0s 3}
+    .hidden{display:none}
+    .fadein{opacity:0;transition:opacity .5s ease}
+    .fadein.show{opacity:1}
+
+    /* Battle UI minimal */
+    .btl-header{display:none; margin:8px 0 12px; padding:8px 10px; border:1px solid #1f2a3d; border-radius:10px; background:rgba(167,139,250,.08)}
+    .btl-header.show{display:block}
+    .btl-card{display:none} /* legacy hidden */
+    .btl-summary{display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:12px; margin:8px 0 16px}
+    .btl-round{display:flex; align-items:center; gap:10px; padding:12px; border-radius:16px; border:1px solid #1f2a3d; background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01))}
+    .btl-sideimg{width:48px; height:48px; object-fit:contain; filter:drop-shadow(0 4px 10px rgba(0,0,0,.4))}
+    .btl-mid{flex:1; text-align:center; font-weight:800; letter-spacing:.5px}
+    .btl-res{font-size:20px; margin-left:6px}
+    .btl-win{background:rgba(34,211,138,.12); border-color:#256d52}
+    .btl-lose{background:rgba(244,63,94,.12); border-color:#752737}
+    .btl-draw{background:rgba(148,163,184,.12); border-color:#2a3a4f}
+    .btl-header.show{display:block}
+    .btl-card{background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01)); border:1px solid #2a3550; border-radius:12px; padding:12px; position:relative}
+    .btl-side{display:grid; grid-template-columns:64px 1fr; gap:8px; align-items:center}
+    .btl-name{font-weight:700; font-size:14px}
+    .btl-hp{height:10px; background:#0a1322; border:1px solid #1f2a40; border-radius:999px; overflow:hidden}
+    .btl-hp > div{height:100%; width:100%; background:linear-gradient(90deg, #34d399, #22d3ee)}
+    .btl-vs{font-weight:800; text-align:center; opacity:.75}
+
+    /* ===== Responsive ===== */
+    @media (max-width: 768px){
+      .app{ flex-direction: column }
+      .left{ width:100%; min-width:auto; position:static; border-right:none; border-bottom:1px solid #1f2937; height:auto; overflow:visible }
+      .right{ padding:16px }
+      .grid{ grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:12px }
+      .poke img{ height:140px }
+      .controls{ position:sticky; bottom:0; background:linear-gradient(180deg, rgba(0,0,0,0), #0b1020); padding-bottom:12px }
+      .row input[type="text"]{ font-size:16px } /* avoid iOS zoom */
+      button{ padding:12px 14px }
+    }
+      .grid{ grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:12px }
+      .poke img{ height:140px }
+      .controls{ position:sticky; bottom:0; background:linear-gradient(180deg, rgba(0,0,0,0), #0b1020); padding-bottom:12px }
+      .row input[type="text"]{ font-size:16px } /* avoid iOS zoom */
+      button{ padding:12px 14px }
+    }
+    /* ===== Compact tweaks for notebook screens (~1366px) ===== */
+    html{ font-size:15px; }
+    .left{ width:23%; }
+    .grid{ gap:12px }
+    .poke img{ height:120px }
+    .btl-summary{ grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:10px }
+    .row input[type="text"]{ font-size:15px }
+    button{ padding:9px 10px }
+
+    /* ===== VS overlay (B style: calm & minimal) ===== */
+    .vs-overlay{ position:fixed; inset:0; background:rgba(2,6,23,.88); display:none; align-items:center; justify-content:center; z-index:60 }
+    .vs-overlay.show{ display:flex }
+    .vs-box{ display:flex; align-items:center; gap:24px; padding:18px 22px; border-radius:16px; border:1px solid #2a3550; background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01)); animation:vsIn .45s ease both }
+    .vs-img{ width:84px; height:84px; object-fit:contain; filter:drop-shadow(0 8px 18px rgba(0,0,0,.45)) }
+    .vs-mid{ font-size:28px; font-weight:900; letter-spacing:1.5px; opacity:.9 }
+    @keyframes vsIn{ from{ opacity:0; transform:scale(.94) } to{ opacity:1; transform:scale(1) } }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="left" aria-label="タスク入力">
+    <div class="title">📝 10/12タスクチャレンジ <span id="modeTag" style="margin-left:8px; font-size:11px; opacity:.8"></span></div>
+    <div class="sub">左にタスクを入力 → チェックで右に演出。<br>※ リロードで全リセット（保存なし）。</div>
+    <div class="notice">🔒 セキュリティ考慮済：どこにもデータ送信や保存はしていません（外部アクセスはPokéAPIの画像・データ取得のみ）。</div>
+
+    <div class="progress" aria-label="進捗バー"><div id="bar"></div></div>
+    <div class="progress-label"><span id="phaseLabel">進捗</span><span id="count">0/10</span></div>
+
+    <div id="taskList" aria-live="polite" aria-relevant="additions"></div>
+
+    <div class="controls">
+      <button class="secondary" id="toggleMode" title="モードを切り替え">モード: STANDARD</button>
+      <button id="fillExample" title="例を入れる">例を入れる</button>
+      <button class="secondary" id="resetBtn" title="ページをリロード">リセット</button>
+    </div>
+  </aside>
+
+  <main class="right" aria-label="表示エリア">
+    <div class="title" style="margin-bottom:8px">🎮 右側にポケモン登場 / バトル結果</div>
+    <div id="btlHeader" class="btl-header"></div>
+    <div id="btlSummary" class="btl-summary"></div>
+    <div class="grid" id="grid"></div>
+  </main>
+</div>
+
+<canvas class="confetti" id="confetti"></canvas>
+<div class="toast" id="toast" style="display:none"></div>
+
+<!-- VS overlay root -->
+<div id="vsOverlay" class="vs-overlay" aria-hidden="true"></div>
+
+<script>
+(() => {
+  // ===== Mode detection =====
+  // URLパラメータが使えない環境向けに、ハッシュでモードを切替（#battle / #standard）。
+  const BATTLE_MODE = (location.hash || '').toLowerCase().includes('battle');
+
+  const TOTAL = BATTLE_MODE ? 12 : 10;        // 12: 6 capture + 6 battle
+  const CAPTURE_TARGET = BATTLE_MODE ? 6 : 10; // number of spawn events // number of spawn events
+
+  // DOM refs
+  const list = document.getElementById('taskList');
+  const grid = document.getElementById('grid');
+  const bar  = document.getElementById('bar');
+  const countEl = document.getElementById('count');
+  const toast = document.getElementById('toast');
+  const resetBtn = document.getElementById('resetBtn');
+  const fillExample = document.getElementById('fillExample');
+  const phaseLabel = document.getElementById('phaseLabel');
+  const btlHeader = document.getElementById('btlHeader');
+  const btlSummary = document.getElementById('btlSummary');
+  const modeTag = document.getElementById('modeTag');
+  const toggleModeBtn = document.getElementById('toggleMode');
+
+  if (BATTLE_MODE){
+    modeTag.textContent = 'BATTLE';
+    phaseLabel.textContent = '進捗（キャプチャ6→バトル6）';
+  } else {
+    modeTag.textContent = 'STANDARD';
+  }
+  // ボタン表示テキストを現在モードに合わせる
+  toggleModeBtn.textContent = `モード: ${BATTLE_MODE ? 'BATTLE' : 'STANDARD'}`;
+  toggleModeBtn.addEventListener('click', () => {
+    // ハッシュを切り替えてリロード（状態は元々保存しない仕様）
+    location.hash = BATTLE_MODE ? '#standard' : '#battle';
+    location.reload();
+  });
+
+  let cleared = 0;              // total cleared tasks
+  let completing = new Set();   // prevent double-trigger
+  let capturedTeam = [];        // our 6
+  let battlesDone = 0;          // 0..6
+  let battleResults = [];      // [{round:1, result:'win|lose|draw'}]
+
+  countEl.textContent = `0/${TOTAL}`;
+
+  // Build rows
+  for (let i=1;i<=TOTAL;i++){
+    const row = document.createElement('div'); row.className = 'row';
+    const cb  = document.createElement('input'); cb.type='checkbox'; cb.id = 'cb'+i; cb.setAttribute('aria-label',`タスク${i}完了`);
+    const text= document.createElement('input'); text.type='text'; text.placeholder=`タスク ${i} を入力`;
+    const idx = document.createElement('div'); idx.className='index'; idx.textContent = i;
+    row.appendChild(cb); row.appendChild(text); row.appendChild(idx); list.appendChild(row);
+
+    cb.addEventListener('change', async () => {
+      if (!cb.checked) return;
+      if (!text.value.trim()){
+        showToast('タスク内容を入力してからチェックしてね');
+        cb.checked = false; return;
+      }
+      if (completing.has(i)) return; completing.add(i);
+      try{
+        row.classList.add('done'); text.disabled = true; cb.disabled = true;
+        cleared++; updateProgress();
+
+        if (!BATTLE_MODE){
+          // STANDARD: always spawn
+          await spawnPokemonCard();
+        } else {
+          if (capturedTeam.length < CAPTURE_TARGET){
+            // CAPTURE PHASE
+            const mon = await fetchRandomPokemon();
+            addPokeCard(mon.p, mon.displayName); // show our capture
+            capturedTeam.push(mon);
+            if (capturedTeam.length === CAPTURE_TARGET){
+              btlHeader.classList.add('show');
+              btlHeader.textContent = '⚔️ ライバルが現れた！次の6タスクで 1vs1 を6回バトル！';
+              btlSummary.innerHTML = '';
+            }
+          } else {
+            // BATTLE PHASE (one per task)
+            const slot = battlesDone; // 0..5
+            const ours = capturedTeam[slot];
+            const opp  = await fetchRandomPokemon(); // random rival each time
+            await runBattle(ours, opp, slot+1);
+            battlesDone++;
+            if (battlesDone === 6){ updateBattleHeader(); celebrate(); }
+          }
+        }
+      }catch(err){
+        console.error(err); addErrorCard(err);
+      } finally { completing.delete(i); }
+    });
+  }
+
+  function updateProgress(){
+    countEl.textContent = `${cleared}/${TOTAL}`;
+    const pct = Math.round(cleared/TOTAL*100);
+    bar.style.width = pct+"%";
+  }
+
+  function showToast(msg){
+    toast.textContent = msg; toast.style.display='block';
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(()=> toast.style.display='none', 2200);
+  }
+
+  // ===== Pokémon fetch helpers (with JP name) =====
+  let POKE_MAX = null;
+  async function randomPokemonId(){
+    if (POKE_MAX==null){
+      try{
+        const r = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1');
+        const j = await r.json();
+        POKE_MAX = Math.min( j.count || 898, 1025 ); // safety cap
+      }catch{ POKE_MAX = 898; }
+    }
+    return 1 + Math.floor(Math.random()*POKE_MAX);
+  }
+  async function fetchRandomPokemon(){
+    const id = await randomPokemonId();
+    const [resPoke, resSpec] = await Promise.all([
+      fetch(`https://pokeapi.co/api/v2/pokemon/${id}`),
+      fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}`)
+    ]);
+    if (!resPoke.ok) throw new Error('PokéAPIの取得に失敗しました (pokemon)');
+    if (!resSpec.ok) throw new Error('PokéAPIの取得に失敗しました (species)');
+    const [p, s] = await Promise.all([resPoke.json(), resSpec.json()]);
+    const jpName = (s.names||[]).find(n=> n.language?.name==='ja')?.name
+                || (s.names||[]).find(n=> n.language?.name==='ja-Hrkt')?.name
+                || p.name;
+    return {p, s, displayName: jpName};
+  }
+
+  // STANDARD mode spawn
+  async function spawnPokemonCard(){
+    const mon = await fetchRandomPokemon();
+    addPokeCard(mon.p, mon.displayName);
+  }
+
+  function capitalize(s){ return s? s.charAt(0).toUpperCase()+s.slice(1): s }
+
+  function addPokeCard(p, displayName){
+    const img = (p.sprites?.other?.['official-artwork']?.front_default) || p.sprites?.front_default || '';
+    const el = document.createElement('div'); el.className='poke';
+    el.innerHTML = `
+      <div class="sparkle"></div>
+      <div class="badgelv">#${p.id}</div>
+      <div class="ball wiggle" aria-hidden="true"></div>
+      <div class="art fadein"><img alt="${displayName||p.name}" src="${img}" onerror="this.style.display='none'" /></div>
+      <h3 class="nm">？？？</h3>
+      <div class="meta">Height: ${(p.height/10).toFixed(1)}m / Weight: ${(p.weight/10).toFixed(1)}kg</div>
+      <div class="types">${(p.types||[]).map(t=>`<span class='badge'>${t.type.name}</span>`).join('')}</div>
+    `;
+    grid.append(el);
+    const nameEl = el.querySelector('.nm');
+    const artWrap = el.querySelector('.art');
+    setTimeout(()=>{
+      const ball = el.querySelector('.ball');
+      if(ball) ball.classList.add('hidden');
+      nameEl.textContent = displayName || capitalize(p.name);
+      requestAnimationFrame(()=> artWrap.classList.add('show'));
+    }, 2000);
+  }
+
+  function addErrorCard(err){
+    const el = document.createElement('div'); el.className='poke';
+    el.style.borderColor = '#51222f';
+    el.innerHTML = `
+      <h3 style="color:var(--danger)">取得に失敗</h3>
+      <div class="meta">${(err&&err.message)||'Unknown error'}</div>
+      <div style="margin-top:8px"><button class="secondary" onclick="this.closest('.poke').remove();">閉じる</button></div>
+    `;
+    grid.append(el);
+  }
+
+  // ===== Battle Engine (type chart minimal, STAB 1.2, RNG 0.85–1.00) =====
+  const TYPE = ['normal','fire','water','electric','grass','ice','fighting','poison','ground','flying','psychic','bug','rock','ghost','dragon','dark','steel','fairy'];
+  // per attacker type: arrays of defender types it is 2x, 0.5x, or 0x against
+  const CHART = {
+    normal:{dbl:[], half:['rock','steel'], zero:['ghost']},
+    fire:{dbl:['grass','ice','bug','steel'], half:['fire','water','rock','dragon'], zero:[]},
+    water:{dbl:['fire','ground','rock'], half:['water','grass','dragon'], zero:[]},
+    electric:{dbl:['water','flying'], half:['electric','grass','dragon'], zero:['ground']},
+    grass:{dbl:['water','ground','rock'], half:['fire','grass','poison','flying','bug','dragon','steel'], zero:[]},
+    ice:{dbl:['grass','ground','flying','dragon'], half:['fire','water','ice','steel'], zero:[]},
+    fighting:{dbl:['normal','ice','rock','dark','steel'], half:['poison','flying','psychic','bug','fairy'], zero:['ghost']},
+    poison:{dbl:['grass','fairy'], half:['poison','ground','rock','ghost'], zero:['steel']},
+    ground:{dbl:['fire','electric','poison','rock','steel'], half:['grass','bug'], zero:['flying']},
+    flying:{dbl:['grass','fighting','bug'], half:['electric','rock','steel'], zero:[]},
+    psychic:{dbl:['fighting','poison'], half:['psychic','steel'], zero:['dark']},
+    bug:{dbl:['grass','psychic','dark'], half:['fire','fighting','poison','flying','ghost','steel','fairy'], zero:[]},
+    rock:{dbl:['fire','ice','flying','bug'], half:['fighting','ground','steel'], zero:[]},
+    ghost:{dbl:['psychic','ghost'], half:['dark'], zero:['normal']},
+    dragon:{dbl:['dragon'], half:['steel'], zero:['fairy']},
+    dark:{dbl:['psychic','ghost'], half:['fighting','dark','fairy'], zero:[]},
+    steel:{dbl:['ice','rock','fairy'], half:['fire','water','electric','steel'], zero:[]},
+    fairy:{dbl:['fighting','dragon','dark'], half:['fire','poison','steel'], zero:[]}
+  };
+  function typeMult(attType, defTypes){
+    const c = CHART[attType] || {dbl:[],half:[],zero:[]};
+    let m = 1.0;
+    for(const dt of defTypes){
+      if (c.zero.includes(dt)) m *= 0;
+      else if (c.dbl.includes(dt)) m *= 2;
+      else if (c.half.includes(dt)) m *= 0.5;
+      else m *= 1;
+    }
+    return m;
+  }
+  function bestAttackMultiplier(attTypes, defTypes){
+    let best = {type: attTypes[0]||'normal', mult: 1};
+    for(const t of attTypes){
+      const m = typeMult(t, defTypes);
+      if (m > best.mult) best = {type:t, mult:m};
+    }
+    return best;
+  }
+  function computeDamage(att, def){
+    const attTypes = (att.p.types||[]).map(t=>t.type.name);
+    const defTypes = (def.p.types||[]).map(t=>t.type.name);
+    const {type:useType, mult} = bestAttackMultiplier(attTypes, defTypes);
+    const STAB = attTypes.includes(useType) ? 1.2 : 1.0;
+    const rnd = 0.85 + Math.random()*0.15;
+    const base = 100; // abstract base power
+    const dmg = base * mult * STAB * rnd;
+    return {dmg, mult, useType, STAB, rnd};
+  }
+  async function runBattle(ours, opp, roundIdx){
+    // VS overlay (about 1.8s) then show result card
+    showVS(ours, opp);
+
+    // Pre-compute outcome while overlay is visible
+    const atk1 = computeDamage(ours, opp); // ours -> opp
+    const atk2 = computeDamage(opp, ours); // opp -> ours
+    let result;
+    if (Math.abs(atk1.dmg - atk2.dmg) < 1e-9) result = 'draw';
+    else result = (atk1.dmg > atk2.dmg) ? 'win' : 'lose';
+
+    await new Promise(r=>setTimeout(r, 1800));
+    hideVS();
+
+    // simplified round card
+    const card = document.createElement('div');
+    card.className = `btl-round ${result==='win'?'btl-win':result==='lose'?'btl-lose':'btl-draw'}`;
+    const resSymbol = result==='win'?'○':(result==='lose'?'×':'△');
+    card.innerHTML = `
+      <img class="btl-sideimg" alt="${ours.displayName}" src="${(ours.p.sprites?.front_default)||''}"/>
+      <div class="btl-mid">Round ${roundIdx} <span class="btl-res">${resSymbol}</span></div>
+      <img class="btl-sideimg" alt="${opp.displayName}" src="${(opp.p.sprites?.front_default)||''}"/>
+    `;
+    btlSummary.appendChild(card);
+
+    battleResults.push({round: roundIdx, result});
+    updateBattleHeader();
+  }
+
+  // VS overlay helpers
+  const vsOverlay = document.getElementById('vsOverlay');
+  function showVS(ours, opp){
+    if (!vsOverlay) return;
+    vsOverlay.innerHTML = `<div class='vs-box'>
+      <img class='vs-img' alt='${ours.displayName}' src='${(ours.p.sprites?.front_default)||''}'/>
+      <div class='vs-mid'>VS</div>
+      <img class='vs-img' alt='${opp.displayName}' src='${(opp.p.sprites?.front_default)||''}'/>
+    </div>`;
+    vsOverlay.classList.add('show');
+  }
+  function hideVS(){ vsOverlay && vsOverlay.classList.remove('show'); }
+
+  function updateBattleHeader(){
+    const w = battleResults.filter(r=>r.result==='win').length;
+    const l = battleResults.filter(r=>r.result==='lose').length;
+    const d = battleResults.filter(r=>r.result==='draw').length;
+    const done = battleResults.length;
+    const prefix = done<6 ? '進行中' : '🏁 最終結果';
+    btlHeader.classList.add('show');
+    btlHeader.textContent = `${prefix}: ${w}勝 ${l}敗 ${d}分`;
+  }
+
+  // Confetti on finish (very lightweight)
+  function celebrate(){
+    showToast(BATTLE_MODE ? '🎉 12/12 達成！バトル完走おめでとう！' : '🎉 10/10 達成！おめでとう！');
+    const cv = document.getElementById('confetti');
+    const ctx = cv.getContext('2d');
+    const dpr = Math.max(1, window.devicePixelRatio||1);
+    function resize(){ cv.width = innerWidth*dpr; cv.height = innerHeight*dpr; }
+    resize();
+    const pieces = Array.from({length:140}, () => ({
+      x: Math.random()*cv.width, y: -Math.random()*cv.height*0.5, r: 2 + Math.random()*4,
+      vy: 2 + Math.random()*3, vx: -1 + Math.random()*2, rot: Math.random()*Math.PI, vr: -0.2 + Math.random()*0.4
+    }));
+    let t = 0, anim;
+    (function loop(){
+      anim = requestAnimationFrame(loop);
+      t++; ctx.clearRect(0,0,cv.width,cv.height);
+      for (const p of pieces){ p.x += p.vx; p.y += p.vy; p.rot += p.vr; if (p.y > cv.height) p.y = -10; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillStyle = t%60<20? '#22d3ee' : (t%60<40? '#a78bfa' : '#34d399'); ctx.fillRect(-p.r, -p.r, p.r*2, p.r*2); ctx.restore(); }
+      if (t>500){ cancelAnimationFrame(anim); ctx.clearRect(0,0,cv.width,cv.height); }
+    })();
+    window.addEventListener('resize', resize, {once:true});
+  }
+
+  // helpers
+  resetBtn.addEventListener('click', () => location.reload());
+  fillExample.addEventListener('click', () => {
+    const examples10 = ['メールを5件整理','Slack未読を0に','机を5分片付け','小タスク3つ洗い出し','請求書チェック','ランチ準備','散歩5分','領収書を撮影','メモをNotionへ','水を飲む'];
+    const examples12 = examples10.concat(['ライバル登場準備','集中2分']);
+    const arr = BATTLE_MODE ? examples12 : examples10;
+    [...list.querySelectorAll('input[type="text"]')].forEach((el,i)=> el.value = arr[i]||'');
+    showToast('例を入れました。好きに書き換えてOK');
+  });
+
+  // ===== Developer self-tests (run with URL hash #test) =====
+  function runTests(){
+    const results = [];
+    function ok(name, cond){ results.push({name, pass: !!cond}); }
+    // DOM structure
+    ok('rows exist (TOTAL)', list.querySelectorAll('.row').length === TOTAL);
+    ok('progress bar exists', !!bar);
+    ok('grid exists', !!grid);
+    ok('security notice exists', !!document.querySelector('.notice'));
+    ok('matchMedia available', typeof window.matchMedia === 'function');
+    // Type chart sanity
+    ok('fire>grass (2x)', Math.abs(typeMult('fire',['grass'])-2.0)<1e-9);
+    ok('electric>ground is 0x', typeMult('electric',['ground'])===0);
+    ok('normal>rock is 0.5x', Math.abs(typeMult('normal',['rock'])-0.5)<1e-9);
+    // bestAttackMultiplier picks attacking type
+    const best = bestAttackMultiplier(['fire','normal'], ['grass']);
+    ok('bestAttack fire chosen', best.type==='fire' && best.mult===2);
+
+    // Report
+    const failed = results.filter(r=>!r.pass);
+    const msg = `Tests: ${results.length} / Fail: ${failed.length}`;
+    console.log(msg, results);
+    showToast(failed.length? 'Self-test: FAIL（詳細はConsole）' : 'Self-test: PASS');
+  }
+  if (location.hash === '#test') runTests();
+})();
+</script>
+</body>
+</html>
