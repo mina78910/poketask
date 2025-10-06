@@ -3,11 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Security hardening -->
+  <meta name="referrer" content="no-referrer" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https:; connect-src https://pokeapi.co; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; upgrade-insecure-requests" />
   <title>Task × Pokémon – 10/12タスクをゲーム感覚で</title>
   <style>
-    :root{
-      --bg:#0f172a; --panel:#111827; --text:#e5e7eb; --accent:#22d3ee; --accent-2:#a78bfa; --ok:#34d399; --warn:#f59e0b; --danger:#f43f5e;
-    }
+    :root{ --bg:#0f172a; --panel:#111827; --text:#e5e7eb; --accent:#22d3ee; --accent-2:#a78bfa; --ok:#34d399; --warn:#f59e0b; --danger:#f43f5e; }
     *{box-sizing:border-box}
     html,body{height:100%}
     body{margin:0; background:radial-gradient(1200px 700px at 70% -10%, #1e293b 0%, #0f172a 45%); color:var(--text); font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji"}
@@ -70,13 +71,6 @@
     .btl-win{background:rgba(34,211,138,.12); border-color:#256d52}
     .btl-lose{background:rgba(244,63,94,.12); border-color:#752737}
     .btl-draw{background:rgba(148,163,184,.12); border-color:#2a3a4f}
-    .btl-header.show{display:block}
-    .btl-card{background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01)); border:1px solid #2a3550; border-radius:12px; padding:12px; position:relative}
-    .btl-side{display:grid; grid-template-columns:64px 1fr; gap:8px; align-items:center}
-    .btl-name{font-weight:700; font-size:14px}
-    .btl-hp{height:10px; background:#0a1322; border:1px solid #1f2a40; border-radius:999px; overflow:hidden}
-    .btl-hp > div{height:100%; width:100%; background:linear-gradient(90deg, #34d399, #22d3ee)}
-    .btl-vs{font-weight:800; text-align:center; opacity:.75}
 
     /* ===== Responsive ===== */
     @media (max-width: 768px){
@@ -89,12 +83,7 @@
       .row input[type="text"]{ font-size:16px } /* avoid iOS zoom */
       button{ padding:12px 14px }
     }
-      .grid{ grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:12px }
-      .poke img{ height:140px }
-      .controls{ position:sticky; bottom:0; background:linear-gradient(180deg, rgba(0,0,0,0), #0b1020); padding-bottom:12px }
-      .row input[type="text"]{ font-size:16px } /* avoid iOS zoom */
-      button{ padding:12px 14px }
-    }
+
     /* ===== Compact tweaks for notebook screens (~1366px) ===== */
     html{ font-size:15px; }
     .left{ width:23%; }
@@ -119,6 +108,24 @@
     <div class="title">📝 10/12タスクチャレンジ <span id="modeTag" style="margin-left:8px; font-size:11px; opacity:.8"></span></div>
     <div class="sub">左にタスクを入力 → チェックで右に演出。<br>※ リロードで全リセット（保存なし）。</div>
     <div class="notice">🔒 セキュリティ考慮済：どこにもデータ送信や保存はしていません（外部アクセスはPokéAPIの画像・データ取得のみ）。</div>
+
+    <!-- Region filter -->
+    <div class="filters" style="display:flex; gap:8px; align-items:center; margin-top:10px">
+      <label for="regionSel" style="font-size:12px; opacity:.8">地方:</label>
+      <select id="regionSel" style="flex:1; background:#0b1424; color:var(--text); border:1px solid #20304a; border-radius:8px; padding:8px 10px">
+        <option value="all">全国（すべて）</option>
+        <option value="kanto">カントー</option>
+        <option value="johto">ジョウト</option>
+        <option value="hoenn">ホウエン</option>
+        <option value="sinnoh">シンオウ</option>
+        <option value="unova">イッシュ</option>
+        <option value="kalos">カロス</option>
+        <option value="alola">アローラ</option>
+        <option value="galar">ガラル</option>
+        <option value="hisui">ヒスイ</option>
+        <option value="paldea">パルデア</option>
+      </select>
+    </div>
 
     <div class="progress" aria-label="進捗バー"><div id="bar"></div></div>
     <div class="progress-label"><span id="phaseLabel">進捗</span><span id="count">0/10</span></div>
@@ -149,11 +156,11 @@
 <script>
 (() => {
   // ===== Mode detection =====
-  // URLパラメータが使えない環境向けに、ハッシュでモードを切替（#battle / #standard）。
+  // ハッシュでモードを切替（#battle / #standard）。※ここは既存仕様を維持（デフォルト=STANDARD）
   const BATTLE_MODE = (location.hash || '').toLowerCase().includes('battle');
 
   const TOTAL = BATTLE_MODE ? 12 : 10;        // 12: 6 capture + 6 battle
-  const CAPTURE_TARGET = BATTLE_MODE ? 6 : 10; // number of spawn events // number of spawn events
+  const CAPTURE_TARGET = BATTLE_MODE ? 6 : 10; // number of spawn events
 
   // DOM refs
   const list = document.getElementById('taskList');
@@ -168,6 +175,7 @@
   const btlSummary = document.getElementById('btlSummary');
   const modeTag = document.getElementById('modeTag');
   const toggleModeBtn = document.getElementById('toggleMode');
+  const regionSel = document.getElementById('regionSel');
 
   if (BATTLE_MODE){
     modeTag.textContent = 'BATTLE';
@@ -187,7 +195,7 @@
   let completing = new Set();   // prevent double-trigger
   let capturedTeam = [];        // our 6
   let battlesDone = 0;          // 0..6
-  let battleResults = [];      // [{round:1, result:'win|lose|draw'}]
+  let battleResults = [];       // [{round:1, result:'win|lose|draw'}]
 
   countEl.textContent = `0/${TOTAL}`;
 
@@ -254,21 +262,29 @@
 
   // ===== Pokémon fetch helpers (with JP name) =====
   let POKE_MAX = null;
-  async function randomPokemonId(){
+  const REGIONS = {
+    all:[1,1025], kanto:[1,151], johto:[152,251], hoenn:[252,386], sinnoh:[387,493],
+    unova:[494,649], kalos:[650,721], alola:[722,809], galar:[810,898], hisui:[899,905], paldea:[906,1025]
+  };
+  function regionRange(){ const r = REGIONS[regionSel?.value||'all'] || REGIONS.all; return r; }
+  async function ensurePokeMax(){
     if (POKE_MAX==null){
-      try{
-        const r = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1');
-        const j = await r.json();
-        POKE_MAX = Math.min( j.count || 898, 1025 ); // safety cap
-      }catch{ POKE_MAX = 898; }
+      try{ const r = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1'); const j = await r.json(); POKE_MAX = Math.min(j.count||898, 1025); }
+      catch{ POKE_MAX = 898; }
     }
-    return 1 + Math.floor(Math.random()*POKE_MAX);
+  }
+  async function randomPokemonId(){
+    await ensurePokeMax();
+    const [min,max] = regionRange();
+    const upper = Math.min(max, POKE_MAX); // respect API upper bound
+    const id = min + Math.floor(Math.random()* (upper - min + 1));
+    return id;
   }
   async function fetchRandomPokemon(){
     const id = await randomPokemonId();
     const [resPoke, resSpec] = await Promise.all([
-      fetch(`https://pokeapi.co/api/v2/pokemon/${id}`),
-      fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}`)
+      fetch(`https://pokeapi.co/api/v2/pokemon/${id}`, {referrerPolicy:'no-referrer'}),
+      fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}`, {referrerPolicy:'no-referrer'})
     ]);
     if (!resPoke.ok) throw new Error('PokéAPIの取得に失敗しました (pokemon)');
     if (!resSpec.ok) throw new Error('PokéAPIの取得に失敗しました (species)');
@@ -288,42 +304,51 @@
   function capitalize(s){ return s? s.charAt(0).toUpperCase()+s.slice(1): s }
 
   function addPokeCard(p, displayName){
-    const img = (p.sprites?.other?.['official-artwork']?.front_default) || p.sprites?.front_default || '';
-    const el = document.createElement('div'); el.className='poke';
-    el.innerHTML = `
-      <div class="sparkle"></div>
-      <div class="badgelv">#${p.id}</div>
-      <div class="ball wiggle" aria-hidden="true"></div>
-      <div class="art fadein"><img alt="${displayName||p.name}" src="${img}" onerror="this.style.display='none'" /></div>
-      <h3 class="nm">？？？</h3>
-      <div class="meta">Height: ${(p.height/10).toFixed(1)}m / Weight: ${(p.weight/10).toFixed(1)}kg</div>
-      <div class="types">${(p.types||[]).map(t=>`<span class='badge'>${t.type.name}</span>`).join('')}</div>
-    `;
-    grid.append(el);
-    const nameEl = el.querySelector('.nm');
-    const artWrap = el.querySelector('.art');
+    const card = document.createElement('div'); card.className = 'poke';
+    const sparkle = document.createElement('div'); sparkle.className = 'sparkle';
+    const badge = document.createElement('div'); badge.className = 'badgelv'; badge.textContent = `#${p.id}`;
+    const ball = document.createElement('div'); ball.className = 'ball wiggle'; ball.setAttribute('aria-hidden','true');
+
+    const artWrap = document.createElement('div'); artWrap.className = 'art fadein';
+    const img = document.createElement('img');
+    img.alt = displayName || p.name;
+    img.referrerPolicy = 'no-referrer';
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    img.src = (p.sprites?.other?.['official-artwork']?.front_default) || p.sprites?.front_default || '';
+    img.addEventListener('error', ()=>{ img.style.display='none'; });
+    artWrap.appendChild(img);
+
+    const name = document.createElement('h3'); name.className = 'nm'; name.textContent = '？？？';
+    const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = `Height: ${(p.height/10).toFixed(1)}m / Weight: ${(p.weight/10).toFixed(1)}kg`;
+
+    const types = document.createElement('div'); types.className = 'types';
+    (p.types||[]).forEach(t=>{ const s=document.createElement('span'); s.className='badge'; s.textContent=t.type.name; types.appendChild(s); });
+
+    card.appendChild(sparkle); card.appendChild(badge); card.appendChild(ball); card.appendChild(artWrap); card.appendChild(name); card.appendChild(meta); card.appendChild(types);
+    grid.append(card);
+
     setTimeout(()=>{
-      const ball = el.querySelector('.ball');
-      if(ball) ball.classList.add('hidden');
-      nameEl.textContent = displayName || capitalize(p.name);
+      ball.classList.add('hidden');
+      name.textContent = displayName || capitalize(p.name);
       requestAnimationFrame(()=> artWrap.classList.add('show'));
     }, 2000);
   }
 
   function addErrorCard(err){
-    const el = document.createElement('div'); el.className='poke';
-    el.style.borderColor = '#51222f';
-    el.innerHTML = `
-      <h3 style="color:var(--danger)">取得に失敗</h3>
-      <div class="meta">${(err&&err.message)||'Unknown error'}</div>
-      <div style="margin-top:8px"><button class="secondary" onclick="this.closest('.poke').remove();">閉じる</button></div>
-    `;
-    grid.append(el);
+    const card = document.createElement('div'); card.className='poke'; card.style.borderColor = '#51222f';
+    const h = document.createElement('h3'); h.style.color = 'var(--danger)'; h.textContent = '取得に失敗';
+    const m = document.createElement('div'); m.className='meta'; m.textContent = (err && err.message) || 'Unknown error';
+    const btnWrap = document.createElement('div'); btnWrap.style.marginTop = '8px';
+    const btn = document.createElement('button'); btn.className='secondary'; btn.textContent='閉じる';
+    btn.addEventListener('click', ()=> card.remove());
+    btnWrap.appendChild(btn);
+    card.appendChild(h); card.appendChild(m); card.appendChild(btnWrap);
+    grid.append(card);
   }
 
   // ===== Battle Engine (type chart minimal, STAB 1.2, RNG 0.85–1.00) =====
   const TYPE = ['normal','fire','water','electric','grass','ice','fighting','poison','ground','flying','psychic','bug','rock','ghost','dragon','dark','steel','fairy'];
-  // per attacker type: arrays of defender types it is 2x, 0.5x, or 0x against
   const CHART = {
     normal:{dbl:[], half:['rock','steel'], zero:['ghost']},
     fire:{dbl:['grass','ice','bug','steel'], half:['fire','water','rock','dragon'], zero:[]},
@@ -374,43 +399,31 @@
     return {dmg, mult, useType, STAB, rnd};
   }
   async function runBattle(ours, opp, roundIdx){
-    // VS overlay (about 1.8s) then show result card
     showVS(ours, opp);
-
-    // Pre-compute outcome while overlay is visible
-    const atk1 = computeDamage(ours, opp); // ours -> opp
-    const atk2 = computeDamage(opp, ours); // opp -> ours
-    let result;
-    if (Math.abs(atk1.dmg - atk2.dmg) < 1e-9) result = 'draw';
-    else result = (atk1.dmg > atk2.dmg) ? 'win' : 'lose';
-
-    await new Promise(r=>setTimeout(r, 1800));
-    hideVS();
-
-    // simplified round card
-    const card = document.createElement('div');
-    card.className = `btl-round ${result==='win'?'btl-win':result==='lose'?'btl-lose':'btl-draw'}`;
-    const resSymbol = result==='win'?'○':(result==='lose'?'×':'△');
-    card.innerHTML = `
-      <img class="btl-sideimg" alt="${ours.displayName}" src="${(ours.p.sprites?.front_default)||''}"/>
-      <div class="btl-mid">Round ${roundIdx} <span class="btl-res">${resSymbol}</span></div>
-      <img class="btl-sideimg" alt="${opp.displayName}" src="${(opp.p.sprites?.front_default)||''}"/>
-    `;
-    btlSummary.appendChild(card);
-
-    battleResults.push({round: roundIdx, result});
-    updateBattleHeader();
+    const atk1 = computeDamage(ours, opp);
+    const atk2 = computeDamage(opp, ours);
+    let result; if (Math.abs(atk1.dmg - atk2.dmg) < 1e-9) result='draw'; else result = (atk1.dmg>atk2.dmg)?'win':'lose';
+    await new Promise(r=>setTimeout(r, 1800)); hideVS();
+    const card = document.createElement('div'); card.className = `btl-round ${result==='win'?'btl-win':result==='lose'?'btl-lose':'btl-draw'}`;
+    const imgL = document.createElement('img'); imgL.className='btl-sideimg'; imgL.referrerPolicy='no-referrer'; imgL.alt=ours.displayName; imgL.src=(ours.p.sprites?.front_default)||'';
+    const mid = document.createElement('div'); mid.className='btl-mid'; mid.textContent = `Round ${roundIdx} `; const mark = document.createElement('span'); mark.className='btl-res'; mark.textContent = result==='win'?'○':(result==='lose'?'×':'△'); mid.appendChild(mark);
+    const imgR = document.createElement('img'); imgR.className='btl-sideimg'; imgR.referrerPolicy='no-referrer'; imgR.alt=opp.displayName; imgR.src=(opp.p.sprites?.front_default)||'';
+    card.appendChild(imgL); card.appendChild(mid); card.appendChild(imgR); btlSummary.appendChild(card);
+    battleResults.push({round: roundIdx, result}); updateBattleHeader();
   }
 
   // VS overlay helpers
   const vsOverlay = document.getElementById('vsOverlay');
   function showVS(ours, opp){
     if (!vsOverlay) return;
-    vsOverlay.innerHTML = `<div class='vs-box'>
-      <img class='vs-img' alt='${ours.displayName}' src='${(ours.p.sprites?.front_default)||''}'/>
-      <div class='vs-mid'>VS</div>
-      <img class='vs-img' alt='${opp.displayName}' src='${(opp.p.sprites?.front_default)||''}'/>
-    </div>`;
+    // Build with DOM APIs (no innerHTML)
+    const box = document.createElement('div'); box.className='vs-box';
+    const l = document.createElement('img'); l.className='vs-img'; l.referrerPolicy='no-referrer'; l.alt=ours.displayName; l.src=(ours.p.sprites?.front_default)||'';
+    const mid = document.createElement('div'); mid.className='vs-mid'; mid.textContent='VS';
+    const r = document.createElement('img'); r.className='vs-img'; r.referrerPolicy='no-referrer'; r.alt=opp.displayName; r.src=(opp.p.sprites?.front_default)||'';
+    vsOverlay.innerHTML='';
+    box.appendChild(l); box.appendChild(mid); box.appendChild(r);
+    vsOverlay.appendChild(box);
     vsOverlay.classList.add('show');
   }
   function hideVS(){ vsOverlay && vsOverlay.classList.remove('show'); }
@@ -456,6 +469,11 @@
     [...list.querySelectorAll('input[type="text"]')].forEach((el,i)=> el.value = arr[i]||'');
     showToast('例を入れました。好きに書き換えてOK');
   });
+  // region change toast
+  regionSel.addEventListener('change', ()=>{
+    const jp = regionSel.options[regionSel.selectedIndex].textContent;
+    showToast(`地方フィルタ: ${jp}`);
+  });
 
   // ===== Developer self-tests (run with URL hash #test) =====
   function runTests(){
@@ -463,6 +481,7 @@
     function ok(name, cond){ results.push({name, pass: !!cond}); }
     // DOM structure
     ok('rows exist (TOTAL)', list.querySelectorAll('.row').length === TOTAL);
+    ok('task inputs count', list.querySelectorAll('input[type="text"]').length === TOTAL);
     ok('progress bar exists', !!bar);
     ok('grid exists', !!grid);
     ok('security notice exists', !!document.querySelector('.notice'));
@@ -474,6 +493,14 @@
     // bestAttackMultiplier picks attacking type
     const best = bestAttackMultiplier(['fire','normal'], ['grass']);
     ok('bestAttack fire chosen', best.type==='fire' && best.mult===2);
+    // New: basic function presence
+    ok('functions exist', typeof addPokeCard==='function' && typeof runBattle==='function' && typeof showVS==='function' && typeof hideVS==='function');
+    ok('BATTLE_MODE boolean', typeof BATTLE_MODE === 'boolean');
+    // Region filter sanity
+    regionSel.value = 'kanto';
+    const [mi,ma] = REGIONS.kanto; let within = true;
+    for(let i=0;i<30;i++){ const id = Math.floor(Math.random()* (ma-mi+1))+mi; if (id<mi||id>ma){ within=false; break; } }
+    ok('region bounds (kanto) local calc', within);
 
     // Report
     const failed = results.filter(r=>!r.pass);
