@@ -8,99 +8,102 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https:; connect-src https://pokeapi.co; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; upgrade-insecure-requests" />
   <title>Task × Pokémon – 10/12タスクをゲーム感覚で</title>
   <style>
-    :root{ --bg:#0f172a; --panel:#111827; --text:#e5e7eb; --accent:#22d3ee; --accent-2:#a78bfa; --ok:#34d399; --warn:#f59e0b; --danger:#f43f5e; }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{margin:0; background:radial-gradient(1200px 700px at 70% -10%, #1e293b 0%, #0f172a 45%); color:var(--text); font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji"}
-    .app{display:flex; min-height:100vh}
-    .left{width:25%; min-width:260px; background:linear-gradient(180deg, var(--panel), #0b1020); border-right:1px solid #1f2937; padding:16px; position:sticky; top:0; align-self:flex-start; height:100vh; overflow-y:auto;}
-    .right{flex:1; padding:20px 24px}
+  :root{--bg:#0f172a;--panel:#111827;--text:#e5e7eb;--accent:#22d3ee;--accent-2:#a78bfa;--ok:#34d399;--warn:#f59e0b;--danger:#f43f5e}
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  html{font-size:15px}
+  body{margin:0;background:radial-gradient(1200px 700px at 70% -10%,#1e293b 0%,#0f172a 45%);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";}
 
-    .title{font-size:18px; font-weight:700; letter-spacing:.2px; display:flex; align-items:center; gap:8px}
-    .sub{opacity:.75; font-size:12px}
-    .notice{margin-top:8px; font-size:12px; color:#9ca3af; background:#0a1424; border:1px solid #20304a; padding:8px 10px; border-radius:10px}
+  /* ===== Layout（左固定／右スクロール） ===== */
+  .app{display:grid;grid-template-columns:clamp(200px,40vw,280px) 1fr;min-height:100vh}
+  .left{background:linear-gradient(180deg,var(--panel),#0b1020);border-right:1px solid #1f2937;padding:16px;position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto}
+  .right{padding:20px 24px;height:100vh;overflow:auto}
 
-    .row{display:grid; grid-template-columns:24px 1fr 24px; gap:10px; align-items:center; background:rgba(255,255,255,.02); padding:8px 10px; border:1px solid #1f2937; border-radius:10px}
-    .row input[type="text"]{width:100%; padding:8px 10px; border-radius:8px; border:1px solid #263244; background:#0a1424; color:var(--text); outline:none}
-    .row input[type="text"]::placeholder{color:#94a3b8}
-    .row input[type="checkbox"]{ width:20px; height:20px; accent-color: var(--ok); }
-    .row + .row{margin-top:8px}
-    .row.done{opacity:.6}
-    .row .index{opacity:.7; font-size:12px; background:#0a1324; border-radius:6px; padding:2px 6px; text-align:center}
+  /* ===== Common UI ===== */
+  .title{font-size:18px;font-weight:700;letter-spacing:.2px;display:flex;align-items:center;gap:8px}
+  .sub{opacity:.75;font-size:12px}
+  .notice{margin-top:8px;font-size:12px;color:#9ca3af;background:#0a1424;border:1px solid #20304a;padding:8px 10px;border-radius:10px}
 
-    .controls{display:flex; gap:8px; margin-top:10px}
-    button{cursor:pointer; border:none; border-radius:10px; padding:10px 12px; background:linear-gradient(90deg, var(--accent), var(--accent-2)); color:#0b1020; font-weight:700; box-shadow:0 10px 25px rgba(56,189,248,.25)}
-    button.secondary{background:#0b1424; color:#e5e7eb; border:1px solid #20304a; box-shadow:none}
+  .row{display:grid;grid-template-columns:24px 1fr 24px;gap:10px;align-items:center;background:rgba(255,255,255,.02);padding:8px 10px;border:1px solid #1f2937;border-radius:10px}
+  .row+.row{margin-top:8px}
+  .row.done{opacity:.6}
+  .row .index{opacity:.7;font-size:12px;background:#0a1324;border-radius:6px;padding:2px 6px;text-align:center}
+  .row input[type="text"]{width:100%;padding:8px 10px;border-radius:8px;border:1px solid #263244;background:#0a1424;color:var(--text);outline:none}
+  .row input[type="text"]::placeholder{color:#94a3b8}
+  .row input[type="checkbox"]{width:20px;height:20px;accent-color:var(--ok)}
 
-    .progress{margin:14px 0 10px; height:10px; background:#0a1322; border-radius:999px; border:1px solid #1f2a40; overflow:hidden}
-    .progress > div{height:100%; width:0%; background:linear-gradient(90deg, var(--ok), var(--accent)); transition:width .35s ease}
-    .progress-label{font-size:12px; opacity:.75; display:flex; justify-content:space-between}
+  .controls{display:flex;gap:8px;margin-top:10px}
+  button{cursor:pointer;border:none;border-radius:10px;padding:9px 10px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#0b1020;font-weight:700;box-shadow:0 10px 25px rgba(56,189,248,.25)}
+  button.secondary{background:#0b1424;color:#e5e7eb;border:1px solid #20304a;box-shadow:none}
 
-    .grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:16px}
-    .poke{background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01)); border:1px solid #1f2a3d; border-radius:16px; padding:12px; position:relative; overflow:hidden}
-    .poke h3{margin:6px 0 2px; font-size:16px}
-    .poke .meta{font-size:12px; opacity:.7}
-    .poke img{width:100%; height:160px; object-fit:contain; display:block; filter:drop-shadow(0 10px 20px rgba(0,0,0,.6))}
-    .types{display:flex; gap:6px; flex-wrap:wrap; margin:6px 0 0}
-    .badge{font-size:11px; background:#0f1a2c; border:1px solid #23314c; padding:3px 8px; border-radius:999px}
-    .badgelv{position:absolute; top:8px; right:8px; font-size:11px; background:#10203a; border:1px solid #24486d; padding:3px 8px; border-radius:8px}
-    .sparkle{position:absolute; inset:0; pointer-events:none; background:radial-gradient(120px 60px at 20% -10%, rgba(255,255,255,.08), transparent 40%), radial-gradient(140px 80px at 120% 10%, rgba(255,255,255,.06), transparent 40%)}
+  .progress{margin:14px 0 10px;height:10px;background:#0a1322;border-radius:999px;border:1px solid #1f2a40;overflow:hidden}
+  .progress>div{height:100%;width:0%;background:linear-gradient(90deg,var(--ok),var(--accent));transition:width .35s ease}
+  .progress-label{font-size:12px;opacity:.75;display:flex;justify-content:space-between}
 
-    .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:24px; background:#081427; border:1px solid #20314e; color:var(--text); padding:10px 14px; border-radius:999px; box-shadow:0 8px 30px rgba(0,0,0,.35); font-size:13px}
-    .confetti{position:fixed; inset:0; pointer-events:none}
+  /* ===== Cards grid（右：幅に応じて折返し） ===== */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+  .poke{background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));border:1px solid #1f2a3d;border-radius:16px;padding:12px;position:relative;overflow:hidden}
+  .poke h3{margin:6px 0 2px;font-size:16px}
+  .poke .meta{font-size:12px;opacity:.7}
+  .poke img{width:100%;height:120px;object-fit:contain;display:block;filter:drop-shadow(0 10px 20px rgba(0,0,0,.6))}
+  .types{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 0}
+  .badge{font-size:11px;background:#0f1a2c;border:1px solid #23314c;padding:3px 8px;border-radius:999px}
+  .badgelv{position:absolute;top:8px;right:8px;font-size:11px;background:#10203a;border:1px solid #24486d;padding:3px 8px;border-radius:8px}
+  .sparkle{position:absolute;inset:0;pointer-events:none;background:radial-gradient(120px 60px at 20% -10%,rgba(255,255,255,.08),transparent 40%),radial-gradient(140px 80px at 120% 10%,rgba(255,255,255,.06),transparent 40%)}
 
-    /* Pokéball & reveal */
-    .ball{width:120px;height:120px;border-radius:50%;background:conic-gradient(#e11d48 0 180deg,#e5e7eb 0 360deg);position:relative;margin:0 auto 8px;border:3px solid #0f172a;box-shadow:0 10px 30px rgba(0,0,0,.35)}
-    .ball:before{content:'';position:absolute;left:0;right:0;top:calc(50% - 3px);height:6px;background:#0f172a}
-    .ball:after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:26px;height:26px;border-radius:50%;background:#e5e7eb;border:4px solid #0f172a}
-    @keyframes wiggle{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-4px) rotate(-6deg)}75%{transform:translateY(-4px) rotate(6deg)}}
-    .wiggle{animation:wiggle 0.7s ease-in-out 0s 3}
-    .hidden{display:none}
-    .fadein{opacity:0;transition:opacity .5s ease}
-    .fadein.show{opacity:1}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:#081427;border:1px solid #20314e;color:var(--text);padding:10px 14px;border-radius:999px;box-shadow:0 8px 30px rgba(0,0,0,.35);font-size:13px}
+  .confetti{position:fixed;inset:0;pointer-events:none}
 
-    /* Battle UI minimal */
-    .btl-header{display:none; margin:8px 0 12px; padding:8px 10px; border:1px solid #1f2a3d; border-radius:10px; background:rgba(167,139,250,.08)}
-    .btl-header.show{display:block}
-    .btl-card{display:none} /* legacy hidden */
-    .btl-summary{display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:12px; margin:8px 0 16px}
-    .btl-round{display:flex; align-items:center; gap:10px; padding:12px; border-radius:16px; border:1px solid #1f2a3d; background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01))}
-    .btl-sideimg{width:48px; height:48px; object-fit:contain; filter:drop-shadow(0 4px 10px rgba(0,0,0,.4))}
-    .btl-mid{flex:1; text-align:center; font-weight:800; letter-spacing:.5px}
-    .btl-res{font-size:20px; margin-left:6px}
-    .btl-win{background:rgba(34,211,138,.12); border-color:#256d52}
-    .btl-lose{background:rgba(244,63,94,.12); border-color:#752737}
-    .btl-draw{background:rgba(148,163,184,.12); border-color:#2a3a4f}
+  /* ===== Pokéball / reveal ===== */
+  .ball{width:120px;height:120px;border-radius:50%;background:conic-gradient(#e11d48 0 180deg,#e5e7eb 0 360deg);position:relative;margin:0 auto 8px;border:3px solid #0f172a;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .ball:before{content:'';position:absolute;left:0;right:0;top:calc(50% - 3px);height:6px;background:#0f172a}
+  .ball:after{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:26px;height:26px;border-radius:50%;background:#e5e7eb;border:4px solid #0f172a}
+  @keyframes wiggle{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-4px) rotate(-6deg)}75%{transform:translateY(-4px) rotate(6deg)}}
+  .wiggle{animation:wiggle .7s ease-in-out 0s 3}
+  .hidden{display:none}
+  .fadein{opacity:0;transition:opacity .5s ease}
+  .fadein.show{opacity:1}
 
-    /* ===== Responsive ===== */
-    @media (max-width: 768px){
-      .app{ flex-direction: column }
-      .left{ width:100%; min-width:auto; position:static; border-right:none; border-bottom:1px solid #1f2937; height:auto; overflow:visible }
-      .right{ padding:16px }
-      .grid{ grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:12px }
-      .poke img{ height:140px }
-      .controls{ position:sticky; bottom:0; background:linear-gradient(180deg, rgba(0,0,0,0), #0b1020); padding-bottom:12px }
-      .row input[type="text"]{ font-size:16px } /* avoid iOS zoom */
-      button{ padding:12px 14px }
-    }
+  /* ===== Battle UI ===== */
+  .btl-header{display:none;margin:8px 0 12px;padding:8px 10px;border:1px solid #1f2a3d;border-radius:10px;background:rgba(167,139,250,.08)}
+  .btl-header.show{display:block}
+  .btl-card{display:none}
+  .btl-summary{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin:8px 0 16px}
+  .btl-round{display:flex;align-items:center;gap:10px;padding:12px;border-radius:16px;border:1px solid #1f2a3d;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01))}
+  .btl-sideimg{width:48px;height:48px;object-fit:contain;filter:drop-shadow(0 4px 10px rgba(0,0,0,.4))}
+  .btl-mid{flex:1;text-align:center;font-weight:800;letter-spacing:.5px}
+  .btl-res{font-size:20px;margin-left:6px}
+  .btl-win{background:rgba(34,211,138,.12);border-color:#256d52}
+  .btl-lose{background:rgba(244,63,94,.12);border-color:#752737}
+  .btl-draw{background:rgba(148,163,184,.12);border-color:#2a3a4f}
 
-    /* ===== Compact tweaks for notebook screens (~1366px) ===== */
-    html{ font-size:15px; }
-    .left{ width:23%; }
-    .grid{ gap:12px }
-    .poke img{ height:120px }
-    .btl-summary{ grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:10px }
-    .row input[type="text"]{ font-size:15px }
-    button{ padding:9px 10px }
+  /* ===== VS overlay ===== */
+  .vs-overlay{position:fixed;inset:0;background:rgba(2,6,23,.88);display:none;align-items:center;justify-content:center;z-index:60}
+  .vs-overlay.show{display:flex}
+  .vs-box{display:flex;align-items:center;gap:24px;padding:18px 22px;border-radius:16px;border:1px solid #2a3550;background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));animation:vsIn .45s ease both}
+  .vs-img{width:84px;height:84px;object-fit:contain;filter:drop-shadow(0 8px 18px rgba(0,0,0,.45))}
+  .vs-mid{font-size:28px;font-weight:900;letter-spacing:1.5px;opacity:.9}
+  @keyframes vsIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
 
-    /* ===== VS overlay (B style: calm & minimal) ===== */
-    .vs-overlay{ position:fixed; inset:0; background:rgba(2,6,23,.88); display:none; align-items:center; justify-content:center; z-index:60 }
-    .vs-overlay.show{ display:flex }
-    .vs-box{ display:flex; align-items:center; gap:24px; padding:18px 22px; border-radius:16px; border:1px solid #2a3550; background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01)); animation:vsIn .45s ease both }
-    .vs-img{ width:84px; height:84px; object-fit:contain; filter:drop-shadow(0 8px 18px rgba(0,0,0,.45)) }
-    .vs-mid{ font-size:28px; font-weight:900; letter-spacing:1.5px; opacity:.9 }
-    @keyframes vsIn{ from{ opacity:0; transform:scale(.94) } to{ opacity:1; transform:scale(1) } }
-  </style>
+  /* ===== Responsive（左固定維持・右カード縮小） ===== */
+  @media (max-width:900px){
+    .app{grid-template-columns:clamp(180px,44vw,240px) 1fr}
+    .right{padding:16px}
+    .grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+    .poke img{height:140px}
+    .controls{position:sticky;bottom:0;background:linear-gradient(180deg,rgba(0,0,0,0),#0b1020);padding-bottom:12px}
+    .row input[type="text"]{font-size:16px}
+    button{padding:12px 14px}
+  }
+  @media (max-width:520px){
+    .app{grid-template-columns:clamp(160px,46vw,210px) 1fr}
+    .right{padding:12px}
+    .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+    .poke img{height:120px}
+    .title{font-size:16px}
+  }
+</style>
+
 </head>
 <body>
 <div class="app">
